@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
     clearButton.addEventListener('click', () => {
-        ;[canvasA, canvasB, canvasDiff].forEach(canvas => {
+        ;[canvasA, canvasB, canvasDiff, canvasDiffRgb].forEach(canvas => {
             const context = canvas.getContext('2d')
             context!.clearRect(0, 0, canvas.width, canvas.height)
             delete ppmImages[canvas.id]

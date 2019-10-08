@@ -1,0 +1,127 @@
+/// <reference types="node" />
+
+import 'normalize.css/normalize.css'
+
+interface PpmImage {
+    cols: number
+    rows: number
+    rgbData: Uint8Array
+}
+
+const ppmImages: { [key: string]: PpmImage } = {}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const dropA = document.querySelector<HTMLDivElement>('#drop-file-a')!
+    const dropB = document.querySelector<HTMLDivElement>('#drop-file-b')!
+    const canvasA = document.querySelector<HTMLCanvasElement>('#canvas-file-a')!
+    const canvasB = document.querySelector<HTMLCanvasElement>('#canvas-file-b')!
+    const canvasDiff = document.querySelector<HTMLCanvasElement>('#canvas-diff')!
+    const diffButton = document.querySelector<HTMLButtonElement>('#button-diff')!
+
+    diffButton.addEventListener('click', () => {
+        const imgA = ppmImages[canvasA.id]
+        const imgB = ppmImages[canvasB.id]
+        if (!imgA || !imgB) {
+            console.error('2 images required to diff')
+            return
+        }
+
+        diffImage(imgA, imgB, canvasDiff)
+    })
+
+    dropA.ondragover = dropB.ondragover = event => {
+        event.preventDefault()
+    }
+
+    dropA.ondrop = dropHandlerFor(canvasA)
+    dropB.ondrop = dropHandlerFor(canvasB)
+})
+
+function dropHandlerFor(canvas: HTMLCanvasElement) {
+    return (event: DragEvent) => {
+        event.preventDefault()
+
+        if (!event.dataTransfer) {
+            return
+        }
+
+        if (!event.dataTransfer.files.length) {
+            return
+        }
+
+        const file = event.dataTransfer.files.item(0)!
+        const reader = new FileReader()
+        reader.onload = () => {
+            const result = reader.result as string
+            loadPpm(result, canvas)
+        }
+        reader.readAsText(file)
+    }
+}
+
+function loadPpm(content: string, canvas: HTMLCanvasElement) {
+    const lines = content
+        .replace(/\r/g, '')
+        .split(/\n/)
+        .filter(l => !!l)
+    if (lines[0] !== 'P3') {
+        console.error('Not a PPM file')
+        return
+    }
+
+    const [cols, rows] = lines[1].split(/\s/).map(Number)
+    const maxValue = Number(lines[2])
+    console.info(`dim: ${cols} * ${rows}, max colour: ${maxValue}`)
+
+    const context = canvas.getContext('2d')!
+    canvas.width = cols
+    canvas.height = rows
+    const ppmImage: PpmImage = {
+        cols,
+        rows,
+        rgbData: new Uint8Array(cols * rows * 3)
+    }
+    ppmImages[canvas.id] = ppmImage
+    for (let y = 0; y < rows; y++) {
+        const line = lines[3 + y].split(/\s/).map(Number)
+
+        for (let x = 0; x < cols; x++) {
+            const r = (255 * line[3 * x]) / maxValue
+            const g = (255 * line[3 * x + 1]) / maxValue
+            const b = (255 * line[3 * x + 2]) / maxValue
+            const index = 3 * y * cols + x
+            ppmImage.rgbData[index] = Math.round(r)
+            ppmImage.rgbData[index + 1] = Math.round(g)
+            ppmImage.rgbData[index + 2] = Math.round(b)
+            context.fillStyle = `rgba(${r}, ${g}, ${b}, 1.0)`
+            context.fillRect(x, y, 1, 1)
+        }
+    }
+    console.log('Done')
+}
+
+function diffImage(imageA: PpmImage, imageB: PpmImage, canvas: HTMLCanvasElement) {
+    if (imageA.rows !== imageB.rows || imageA.cols !== imageB.cols) {
+        console.error(`Dimensions don't match`)
+        return
+    }
+
+    const { cols, rows } = imageA
+    const context = canvas.getContext('2d')!
+    canvas.width = cols
+    canvas.height = rows
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const index = 3 * y * cols + x
+            const r = Math.abs(imageA.rgbData[index] - imageB.rgbData[index])
+            const g = Math.abs(imageA.rgbData[index + 1] - imageB.rgbData[index + 1])
+            const b = Math.abs(imageA.rgbData[index + 2] - imageB.rgbData[index + 2])
+            if (r !== 0 || g !== 0 || b !== 0) {
+                context.fillStyle = `rgba(${255}, ${0}, ${255}, 1.0)`
+                context.fillRect(x, y, 1, 1)
+            }
+        }
+    }
+    console.log('Done')
+}

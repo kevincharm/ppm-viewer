@@ -9,8 +9,11 @@ html, body {
     justify-content: space-evenly;
 }
 
-.dropzone {
+.row > * {
     flex-grow: 1;
+}
+
+.dropzone {
     height: 600px;
     background-color: #f7f7f7;
     border-width: 1px;
@@ -27,7 +30,6 @@ html, body {
 
 #diff {
     position: relative;
-    flex-grow: 1;
     height: 600px;
     background-color: #f7f7f7;
 }

@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvasA = document.querySelector<HTMLCanvasElement>('#canvas-file-a')!
     const canvasB = document.querySelector<HTMLCanvasElement>('#canvas-file-b')!
     const canvasDiff = document.querySelector<HTMLCanvasElement>('#canvas-diff')!
+    const canvasDiffRgb = document.querySelector<HTMLCanvasElement>('#canvas-diff-rgb')!
     const diffButton = document.querySelector<HTMLButtonElement>('#button-diff')!
     const clearButton = document.querySelector<HTMLButtonElement>('#button-clear')!
 
@@ -27,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return
         }
 
-        diffImage(imgA, imgB, canvasDiff)
+        diffImage(imgA, imgB, canvasDiff, canvasDiffRgb)
     })
 
     clearButton.addEventListener('click', () => {
@@ -73,7 +74,8 @@ function tryDiff() {
     const canvasA = document.querySelector<HTMLCanvasElement>('#canvas-file-a')
     const canvasB = document.querySelector<HTMLCanvasElement>('#canvas-file-b')
     const canvasDiff = document.querySelector<HTMLCanvasElement>('#canvas-diff')
-    if (!canvasA || !canvasB || !canvasDiff) {
+    const canvasDiffRgb = document.querySelector<HTMLCanvasElement>('#canvas-diff-rgb')
+    if (!canvasA || !canvasB || !canvasDiff || !canvasDiffRgb) {
         return
     }
 
@@ -85,7 +87,7 @@ function tryDiff() {
         return
     }
 
-    diffImage(imgA, imgB, canvasDiff)
+    diffImage(imgA, imgB, canvasDiff, canvasDiffRgb)
 }
 
 function loadPpm(content: string, canvas: HTMLCanvasElement) {
@@ -129,16 +131,27 @@ function loadPpm(content: string, canvas: HTMLCanvasElement) {
     console.log('Done')
 }
 
-function diffImage(imageA: PpmImage, imageB: PpmImage, canvas: HTMLCanvasElement) {
+function diffImage(
+    imageA: PpmImage,
+    imageB: PpmImage,
+    canvasDiff: HTMLCanvasElement,
+    canvasDiffRgb: HTMLCanvasElement
+) {
     if (imageA.rows !== imageB.rows || imageA.cols !== imageB.cols) {
         console.error(`Dimensions don't match`)
         return
     }
 
     const { cols, rows } = imageA
-    const context = canvas.getContext('2d')!
-    canvas.width = cols
-    canvas.height = rows
+    const ctxDiff = canvasDiff.getContext('2d')!
+    canvasDiff.width = cols
+    canvasDiff.height = rows
+    ctxDiff.clearRect(0, 0, canvasDiff.width, canvasDiff.height)
+
+    const ctxDiffRgb = canvasDiffRgb.getContext('2d')!
+    canvasDiffRgb.width = cols
+    canvasDiffRgb.height = rows
+    ctxDiffRgb.clearRect(0, 0, canvasDiffRgb.width, canvasDiffRgb.height)
 
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -146,9 +159,14 @@ function diffImage(imageA: PpmImage, imageB: PpmImage, canvas: HTMLCanvasElement
             const r = Math.abs(imageA.rgbData[index] - imageB.rgbData[index])
             const g = Math.abs(imageA.rgbData[index + 1] - imageB.rgbData[index + 1])
             const b = Math.abs(imageA.rgbData[index + 2] - imageB.rgbData[index + 2])
+            ctxDiffRgb.fillStyle = `rgba(${Math.min(10 * r, 255)}, ${Math.min(10 * g, 255)}, ${Math.min(
+                10 * b,
+                255
+            )}, 1.0)`
+            ctxDiffRgb.fillRect(x, y, 1, 1)
             if (r !== 0 || g !== 0 || b !== 0) {
-                context.fillStyle = `rgba(${255}, ${0}, ${255}, 1.0)`
-                context.fillRect(x, y, 1, 1)
+                ctxDiff.fillStyle = `rgba(${255}, ${0}, ${255}, 1.0)`
+                ctxDiff.fillRect(x, y, 1, 1)
             }
         }
     }

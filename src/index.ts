@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvasB = document.querySelector<HTMLCanvasElement>('#canvas-file-b')!
     const canvasDiff = document.querySelector<HTMLCanvasElement>('#canvas-diff')!
     const diffButton = document.querySelector<HTMLButtonElement>('#button-diff')!
+    const clearButton = document.querySelector<HTMLButtonElement>('#button-clear')!
 
     diffButton.addEventListener('click', () => {
         const imgA = ppmImages[canvasA.id]
@@ -27,6 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         diffImage(imgA, imgB, canvasDiff)
+    })
+
+    clearButton.addEventListener('click', () => {
+        ;[canvasA, canvasB, canvasDiff].forEach(canvas => {
+            const context = canvas.getContext('2d')
+            context!.clearRect(0, 0, canvas.width, canvas.height)
+            delete ppmImages[canvas.id]
+        })
     })
 
     dropA.ondragover = dropB.ondragover = event => {
@@ -54,9 +63,29 @@ function dropHandlerFor(canvas: HTMLCanvasElement) {
         reader.onload = () => {
             const result = reader.result as string
             loadPpm(result, canvas)
+            tryDiff()
         }
         reader.readAsText(file)
     }
+}
+
+function tryDiff() {
+    const canvasA = document.querySelector<HTMLCanvasElement>('#canvas-file-a')
+    const canvasB = document.querySelector<HTMLCanvasElement>('#canvas-file-b')
+    const canvasDiff = document.querySelector<HTMLCanvasElement>('#canvas-diff')
+    if (!canvasA || !canvasB || !canvasDiff) {
+        return
+    }
+
+    const imgA = ppmImages[canvasA.id]
+    const imgB = ppmImages[canvasB.id]
+
+    if (!imgA || !imgB) {
+        console.error('2 images required to diff')
+        return
+    }
+
+    diffImage(imgA, imgB, canvasDiff)
 }
 
 function loadPpm(content: string, canvas: HTMLCanvasElement) {

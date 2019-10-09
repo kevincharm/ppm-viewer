@@ -5,7 +5,7 @@ import 'normalize.css/normalize.css'
 interface PpmImage {
     cols: number
     rows: number
-    rgbData: Uint8Array
+    rgbData: Uint8ClampedArray
 }
 
 const ppmImages: { [key: string]: PpmImage } = {}
@@ -110,7 +110,7 @@ function loadPpm(content: string, canvas: HTMLCanvasElement) {
     const ppmImage: PpmImage = {
         cols,
         rows,
-        rgbData: new Uint8Array(cols * rows * 3)
+        rgbData: new Uint8ClampedArray(cols * rows * 4)
     }
     ppmImages[canvas.id] = ppmImage
     for (let y = 0; y < rows; y++) {
@@ -120,14 +120,15 @@ function loadPpm(content: string, canvas: HTMLCanvasElement) {
             const r = (255 * line[3 * x]) / maxValue
             const g = (255 * line[3 * x + 1]) / maxValue
             const b = (255 * line[3 * x + 2]) / maxValue
-            const index = 3 * y * cols + x
+            const index = 4 * (y * cols + x)
             ppmImage.rgbData[index] = Math.round(r)
             ppmImage.rgbData[index + 1] = Math.round(g)
             ppmImage.rgbData[index + 2] = Math.round(b)
-            context.fillStyle = `rgba(${r}, ${g}, ${b}, 1.0)`
-            context.fillRect(x, y, 1, 1)
+            ppmImage.rgbData[index + 3] = 255
         }
     }
+    const imageData = new ImageData(ppmImage.rgbData, cols, rows)
+    context.putImageData(imageData, 0, 0)
     console.log('Done')
 }
 
@@ -147,28 +148,35 @@ function diffImage(
     canvasDiff.width = cols
     canvasDiff.height = rows
     ctxDiff.clearRect(0, 0, canvasDiff.width, canvasDiff.height)
+    const u8Diff = new Uint8ClampedArray(cols * rows * 4)
 
     const ctxDiffRgb = canvasDiffRgb.getContext('2d')!
     canvasDiffRgb.width = cols
     canvasDiffRgb.height = rows
     ctxDiffRgb.clearRect(0, 0, canvasDiffRgb.width, canvasDiffRgb.height)
+    const u8DiffRgb = new Uint8ClampedArray(cols * rows * 4)
 
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
-            const index = 3 * y * cols + x
+            const index = 4 * (y * cols + x)
             const r = Math.abs(imageA.rgbData[index] - imageB.rgbData[index])
             const g = Math.abs(imageA.rgbData[index + 1] - imageB.rgbData[index + 1])
             const b = Math.abs(imageA.rgbData[index + 2] - imageB.rgbData[index + 2])
-            ctxDiffRgb.fillStyle = `rgba(${Math.min(10 * r, 255)}, ${Math.min(10 * g, 255)}, ${Math.min(
-                10 * b,
-                255
-            )}, 1.0)`
-            ctxDiffRgb.fillRect(x, y, 1, 1)
+            u8DiffRgb[index] = Math.min(255, Math.round(r) * 10)
+            u8DiffRgb[index + 1] = Math.min(255, Math.round(g) * 10)
+            u8DiffRgb[index + 2] = Math.min(255, Math.round(b) * 10)
+            u8DiffRgb[index + 3] = 255
             if (r !== 0 || g !== 0 || b !== 0) {
-                ctxDiff.fillStyle = `rgba(${255}, ${0}, ${255}, 1.0)`
-                ctxDiff.fillRect(x, y, 1, 1)
+                u8Diff[index] = 255
+                u8Diff[index + 1] = 0
+                u8Diff[index + 2] = 255
+                u8Diff[index + 3] = 255
             }
         }
     }
+    const diffImageData = new ImageData(u8Diff, cols, rows)
+    ctxDiff.putImageData(diffImageData, 0, 0)
+    const diffRgbImageData = new ImageData(u8DiffRgb, cols, rows)
+    ctxDiffRgb.putImageData(diffRgbImageData, 0, 0)
     console.log('Done')
 }

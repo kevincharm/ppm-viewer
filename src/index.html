@@ -1,15 +1,28 @@
 <html>
 
 <head>
-    <title>Diff</title>
+    <title>PPM Viewer & Diff Tool</title>
     <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./index.css" />
 </head>
 
 <body>
     <div id="root" class="container">
-        <button id="button-diff">Diff!</button>
-        <button id="button-clear">Clear</button>
+        <div class="control-panel">
+            <div class="left">
+                <button id="button-diff">Diff!</button>
+                <button id="button-clear">Clear</button>
+            </div>
+            <div class="right">
+                <div class="marquee">
+                    <span>
+                        Brought to you by the "reference images got changed 2 days before due" gang
+                    </span>
+                </div>
+                <a href="https://sendcroissants.me" target="_blank">🥐 Buy me brekky</a>
+                <a href="https://github.com/kevincharm/ppm-viewer" target="_blank">💾 Source</a>
+            </div>
+        </div>
         <div id="inputs" class="row">
             <div id="drop-file-a" class="dropzone">
                 <h2>Drag & drop a PPM file here</h2>
@@ -20,7 +33,7 @@
             <div id="drop-file-b" class="dropzone">
                 <h2>Drag & drop a PPM file here</h2>
                 <canvas id="canvas-file-b" class="drawzone">
-        
+
                 </canvas>
             </div>
         </div>

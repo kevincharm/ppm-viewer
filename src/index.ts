@@ -171,6 +171,11 @@ function diffImage(
                 u8Diff[index + 1] = 0
                 u8Diff[index + 2] = 255
                 u8Diff[index + 3] = 255
+            } else {
+                u8Diff[index] = 255
+                u8Diff[index + 1] = 255
+                u8Diff[index + 2] = 255
+                u8Diff[index + 3] = 255
             }
         }
     }

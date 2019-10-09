@@ -8,6 +8,11 @@ interface PpmImage {
     rgbData: Uint8ClampedArray
 }
 
+interface DiffResult {
+    pixelDiffPercent: number
+    rgbDiffPercent: number
+}
+
 const ppmImages: { [key: string]: PpmImage } = {}
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,14 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearButton = document.querySelector<HTMLButtonElement>('#button-clear')!
 
     diffButton.addEventListener('click', () => {
-        const imgA = ppmImages[canvasA.id]
-        const imgB = ppmImages[canvasB.id]
-        if (!imgA || !imgB) {
-            console.error('2 images required to diff')
-            return
-        }
-
-        diffImage(imgA, imgB, canvasDiff, canvasDiffRgb)
+        tryDiff()
     })
 
     clearButton.addEventListener('click', () => {
@@ -75,7 +73,9 @@ function tryDiff() {
     const canvasB = document.querySelector<HTMLCanvasElement>('#canvas-file-b')
     const canvasDiff = document.querySelector<HTMLCanvasElement>('#canvas-diff')
     const canvasDiffRgb = document.querySelector<HTMLCanvasElement>('#canvas-diff-rgb')
-    if (!canvasA || !canvasB || !canvasDiff || !canvasDiffRgb) {
+    const infoDiffPixel = document.querySelector<HTMLSpanElement>('#info-diff-pixel')
+    const infoDiffRgb = document.querySelector<HTMLSpanElement>('#info-diff-rgb')
+    if (!canvasA || !canvasB || !canvasDiff || !canvasDiffRgb || !infoDiffPixel || !infoDiffRgb) {
         return
     }
 
@@ -87,7 +87,15 @@ function tryDiff() {
         return
     }
 
-    diffImage(imgA, imgB, canvasDiff, canvasDiffRgb)
+    const diffResult = diffImage(imgA, imgB, canvasDiff, canvasDiffRgb)
+    if (!diffResult) {
+        console.error('Something went wrong with the diff.')
+        return
+    }
+
+    const { pixelDiffPercent, rgbDiffPercent } = diffResult
+    infoDiffPixel.textContent = `${(pixelDiffPercent * 100).toFixed(2)}`
+    infoDiffRgb.textContent = `${(rgbDiffPercent * 100).toFixed(2)}`
 }
 
 function loadPpm(content: string, canvas: HTMLCanvasElement) {
@@ -137,11 +145,13 @@ function diffImage(
     imageB: PpmImage,
     canvasDiff: HTMLCanvasElement,
     canvasDiffRgb: HTMLCanvasElement
-) {
+): DiffResult | null {
     if (imageA.rows !== imageB.rows || imageA.cols !== imageB.cols) {
         console.error(`Dimensions don't match`)
-        return
+        return null
     }
+
+    const begin = performance.now()
 
     const { cols, rows } = imageA
     const ctxDiff = canvasDiff.getContext('2d')!
@@ -156,17 +166,25 @@ function diffImage(
     ctxDiffRgb.clearRect(0, 0, canvasDiffRgb.width, canvasDiffRgb.height)
     const u8DiffRgb = new Uint8ClampedArray(cols * rows * 4)
 
+    // Count diff pixels
+    let differentPixels = 0
+    let differentChannels = 0
+
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
             const index = 4 * (y * cols + x)
             const r = Math.abs(imageA.rgbData[index] - imageB.rgbData[index])
             const g = Math.abs(imageA.rgbData[index + 1] - imageB.rgbData[index + 1])
             const b = Math.abs(imageA.rgbData[index + 2] - imageB.rgbData[index + 2])
+
+            differentChannels += (r !== 0 ? 1 : 0) + (g !== 0 ? 1 : 0) + (b !== 0 ? 1 : 0)
             u8DiffRgb[index] = Math.min(255, Math.round(r) * 10)
             u8DiffRgb[index + 1] = Math.min(255, Math.round(g) * 10)
             u8DiffRgb[index + 2] = Math.min(255, Math.round(b) * 10)
             u8DiffRgb[index + 3] = 255
             if (r !== 0 || g !== 0 || b !== 0) {
+                // pixel is different
+                differentPixels += 1
                 u8Diff[index] = 255
                 u8Diff[index + 1] = 0
                 u8Diff[index + 2] = 255
@@ -183,5 +201,14 @@ function diffImage(
     ctxDiff.putImageData(diffImageData, 0, 0)
     const diffRgbImageData = new ImageData(u8DiffRgb, cols, rows)
     ctxDiffRgb.putImageData(diffRgbImageData, 0, 0)
-    console.log('Done')
+
+    const end = performance.now()
+    console.log(`Diff finished in ${end - begin}ms.`)
+
+    const totalPixels = cols * rows
+    const totalChannels = cols * rows * 3
+    return {
+        pixelDiffPercent: differentPixels / totalPixels,
+        rgbDiffPercent: differentChannels / totalChannels
+    }
 }
